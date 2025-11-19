@@ -1,0 +1,43 @@
+version: '3.8'
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: pw_user
+      POSTGRES_PASSWORD: pw_pass
+      POSTGRES_DB: followwatch
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "15672:15672"
+  redis:
+    image: redis:7
+  receiver:
+    build: ./receiver
+    environment:
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
+      WEBHOOK_SECRET: "change-me"
+    ports:
+      - "8000:8000"
+    depends_on:
+      - rabbitmq
+  worker:
+    build: ./worker
+    environment:
+      BROKER_URL: pyamqp://guest@rabbitmq//
+      DATABASE_URL: postgresql://pw_user:pw_pass@postgres:5432/followwatch
+      PUBLISHER_URL: http://publisher:9000
+      WORKER_PUBLISHER_TOKEN: pubtoken
+    depends_on:
+      - rabbitmq
+      - postgres
+  publisher:
+    build: ./publisher
+    ports:
+      - "9000:9000"
+    environment:
+      X_API_BEARER: "your-x-bearer-token"
+volumes:
+  pgdata:

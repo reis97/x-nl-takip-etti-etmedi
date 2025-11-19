@@ -1,0 +1,40 @@
+name: CI/CD
+on:
+  push:
+    branches: [ main ]
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      - name: Login to GHCR
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push receiver
+        run: |
+          docker build -t ghcr.io/${{ github.repository_owner }}/follow-watch-receiver:latest ./receiver
+          docker push ghcr.io/${{ github.repository_owner }}/follow-watch-receiver:latest
+      - name: Build and push worker
+        run: |
+          docker build -t ghcr.io/${{ github.repository_owner }}/follow-watch-worker:latest ./worker
+          docker push ghcr.io/${{ github.repository_owner }}/follow-watch-worker:latest
+      - name: Build and push publisher
+        run: |
+          docker build -t ghcr.io/${{ github.repository_owner }}/follow-watch-publisher:latest ./publisher
+          docker push ghcr.io/${{ github.repository_owner }}/follow-watch-publisher:latest
+      - name: Deploy to k8s (via kubectl)
+        uses: azure/setup-kubectl@v3
+        with:
+          version: '1.27.3'
+      - name: Apply manifests
+        env:
+          KUBECONFIG: ${{ secrets.KUBECONFIG }}
+        run: |
+          kubectl apply -f infra/k8s/

@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: publisher
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: publisher
+  template:
+    metadata:
+      labels:
+        app: publisher
+    spec:
+      containers:
+        - name: publisher
+          image: ghcr.io/yourorg/follow-watch-publisher:latest
+          ports:
+            - containerPort: 9000
+          env:
+            - name: X_API_BEARER
+              valueFrom:
+                secretKeyRef:
+                  name: followwatch-secrets
+                  key: x_api_bearer
